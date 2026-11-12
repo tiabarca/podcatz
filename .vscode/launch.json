@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Depurar PODCAZ",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/podcaz.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "PODCAZ: compilar debug",
+      "console": "integratedTerminal"
+    }
+  ]
+}

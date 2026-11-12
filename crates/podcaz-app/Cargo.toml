@@ -1,0 +1,27 @@
+[package]
+name = "podcaz"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "PODCAZ — consola de podcasting para Windows"
+
+[[bin]]
+name = "podcaz"
+path = "src/main.rs"
+
+[features]
+default = ["asio", "mp3"]
+# Soporte ASIO (requiere LLVM/Clang instalado para compilar; ver README).
+asio = ["cpal/asio"]
+# Exportación MP3 con LAME (LGPL).
+mp3 = ["podcaz-core/mp3"]
+
+[dependencies]
+podcaz-core = { path = "../podcaz-core", default-features = false }
+anyhow = "1"
+cpal = "0.18.2"
+midir = "0.11"
+rtrb = "0.4"
+eframe = "0.37"
+rfd = "0.18"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

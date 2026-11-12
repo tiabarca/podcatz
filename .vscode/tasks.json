@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "PODCAZ: 0 - comprobar entorno",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File ${workspaceFolder}/setup.ps1",
+      "problemMatcher": []
+    },
+    {
+      "label": "PODCAZ: 1 - compilar y ejecutar (ASIO + WASAPI)",
+      "type": "shell",
+      "command": "cargo run --release -p podcaz",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "PODCAZ: 2 - compilar y ejecutar SIN ASIO (no necesita LLVM)",
+      "type": "shell",
+      "command": "cargo run --release -p podcaz --no-default-features --features mp3",
+      "group": "build",
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "PODCAZ: compilar debug",
+      "type": "shell",
+      "command": "cargo build -p podcaz",
+      "group": "build",
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "PODCAZ: tests del motor",
+      "type": "shell",
+      "command": "cargo test -p podcaz-core --release",
+      "group": "test",
+      "problemMatcher": ["$rustc"]
+    }
+  ]
+}

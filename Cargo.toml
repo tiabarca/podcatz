@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = ["crates/podcaz-core", "crates/podcaz-app"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[profile.dev]
+opt-level = 1          # el audio en tiempo real necesita algo de optimización incluso en debug
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"

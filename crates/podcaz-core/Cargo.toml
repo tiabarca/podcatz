@@ -1,0 +1,20 @@
+[package]
+name = "podcaz-core"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Motor de audio, DSP, masterizado y exportación de PODCAZ (sin dependencias de dispositivo)"
+
+[features]
+default = ["mp3"]
+mp3 = ["dep:mp3lame-encoder"]
+
+[dependencies]
+anyhow = "1"
+hound = "3.5"
+rtrb = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ebur128 = "0.1"
+symphonia = { version = "0.6", features = ["mp3", "aac", "flac", "vorbis", "pcm", "ogg", "wav", "isomp4", "aiff"] }
+mp3lame-encoder = { version = "0.3", optional = true }
