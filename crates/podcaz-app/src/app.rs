@@ -23,6 +23,7 @@ use podcaz_core::{MAX_VOICES, NUM_PADS};
 
 use crate::audio_io::{self, AudioRunning};
 use crate::midi_in::{self, MidiShared, TriggerSink};
+use crate::theme::{self, Mode};
 
 const PAD_KEYS: [(Key, &str); NUM_PADS] = [
     (Key::Num1, "1"),
@@ -222,6 +223,9 @@ pub struct App {
     status: String,
     status_is_error: bool,
     export: ExportUi,
+
+    theme: Mode,
+    logo: egui::TextureHandle,
 }
 
 // ------------------------------------------------------------------ utilidades
@@ -278,7 +282,7 @@ fn sanitize(name: &str) -> String {
 fn meter(ui: &mut egui::Ui, level: f32, width: f32) {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(width, 10.0), egui::Sense::hover());
     let painter = ui.painter();
-    painter.rect_filled(rect, 2.0, Color32::from_gray(35));
+    painter.rect_filled(rect, 3.0, theme::pal(ui).meter_bg);
     let db = lin_to_db(level).clamp(-60.0, 0.0);
     let frac = (db + 60.0) / 60.0;
     if frac > 0.0 {
@@ -307,7 +311,10 @@ fn db_slider(ui: &mut egui::Ui, value: &mut f32, range: std::ops::RangeInclusive
 // ------------------------------------------------------------------ lógica
 
 impl App {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let theme_mode = theme::load_mode();
+        theme::install(&cc.egui_ctx, theme_mode);
+        let logo = theme::icon_texture(&cc.egui_ctx, 96);
         let (loader_tx, loader_rx) = channel();
         let mut app = App {
             session: Session::default(),
@@ -338,6 +345,8 @@ impl App {
             status: "Elige dispositivo y pulsa «Iniciar audio».".into(),
             status_is_error: false,
             export: ExportUi::default(),
+            theme: theme_mode,
+            logo,
         };
         // última sesión usada
         if let Some(dir) = config_file()
@@ -1034,7 +1043,8 @@ impl eframe::App for App {
 impl App {
     fn ui_session_bar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.heading("PODCAZ");
+            ui.add(egui::Image::new((self.logo.id(), egui::vec2(30.0, 30.0))));
+            ui.label(RichText::new("PODCAZ").size(20.0).strong().color(self.accent(ui)));
             ui.separator();
             ui.label("Sesión:");
             ui.add(egui::TextEdit::singleline(&mut self.session.name).desired_width(180.0));
@@ -1094,7 +1104,30 @@ impl App {
                     .weak()
                     .small(),
             );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let (icon, tip) = match self.theme {
+                    Mode::Dark => ("☀", "Cambiar a modo claro"),
+                    Mode::Light => ("🌙", "Cambiar a modo oscuro"),
+                };
+                if ui
+                    .add(egui::Button::new(RichText::new(icon).size(16.0)).min_size(egui::vec2(30.0, 26.0)))
+                    .on_hover_text(tip)
+                    .clicked()
+                {
+                    self.theme = self.theme.toggled();
+                    theme::apply(ui.ctx(), self.theme);
+                    theme::save_mode(self.theme);
+                }
+            });
         });
+    }
+
+    fn accent(&self, ui: &egui::Ui) -> Color32 {
+        if ui.visuals().dark_mode {
+            theme::ACCENT_DARK
+        } else {
+            theme::ACCENT_LIGHT
+        }
     }
 
     fn ui_audio_bar(&mut self, ui: &mut egui::Ui) {
@@ -1262,7 +1295,7 @@ impl App {
             let (label, fill) = if self.recording {
                 ("⏹  PARAR", RED)
             } else {
-                ("⏺  GRABAR", Color32::from_rgb(120, 40, 40))
+                ("⏺  GRABAR", theme::pal(ui).rec_idle)
             };
             let btn = egui::Button::new(
                 RichText::new(label)
@@ -1293,7 +1326,7 @@ impl App {
                 RichText::new(fmt_time(secs))
                     .size(26.0)
                     .monospace()
-                    .color(if self.recording { RED } else { Color32::GRAY }),
+                    .color(if self.recording { RED } else { theme::pal(ui).timer_idle }),
             );
             if ui
                 .add_enabled(
@@ -1324,7 +1357,7 @@ impl App {
             }
             ui.separator();
             let color = if self.status_is_error {
-                Color32::from_rgb(240, 110, 110)
+                theme::pal(ui).error_text
             } else {
                 ui.visuals().text_color()
             };
@@ -1391,7 +1424,7 @@ impl App {
                     let mute = egui::Button::new(RichText::new("MUTE").strong()).fill(if v.mute {
                         RED
                     } else {
-                        Color32::from_gray(60)
+                        theme::pal(ui).mute_off
                     });
                     if ui.add(mute).clicked() {
                         v.mute = !v.mute;
@@ -1678,24 +1711,30 @@ impl App {
                     }
                     None => "—".into(),
                 };
+                let pal = theme::pal(ui);
+                let idle = !(self.learning_pad == Some(i)
+                    || playing
+                    || self.pad_loading[i]
+                    || (assigned && (self.pad_loaded[i] || !has_audio)));
                 let fill = if self.learning_pad == Some(i) {
-                    Color32::from_rgb(140, 80, 190)
+                    pal.pad_learn
                 } else if playing {
                     GREEN
                 } else if self.pad_loading[i] {
                     AMBER
                 } else if assigned && (self.pad_loaded[i] || !has_audio) {
-                    Color32::from_rgb(60, 80, 110)
+                    pal.pad_assigned
                 } else {
-                    Color32::from_gray(50)
+                    pal.pad_idle
                 };
+                let text_color = if idle { pal.pad_idle_text } else { Color32::WHITE };
                 let text = if self.learning_pad == Some(i) {
                     format!("{}\nesperando nota…", PAD_KEYS[i].1)
                 } else {
                     format!("{} · MIDI {}\n{}", PAD_KEYS[i].1, self.session.pad_note(i), name)
                 };
                 let resp = ui.add(
-                    egui::Button::new(RichText::new(text).color(Color32::WHITE))
+                    egui::Button::new(RichText::new(text).color(text_color))
                         .fill(fill)
                         .min_size(egui::vec2(120.0, 52.0)),
                 );
@@ -2080,18 +2119,19 @@ fn env_canvas(
     let y_to_db = |y: f32| ENV_VIEW_MAX_DB - (y - rect.top()) / rect.height() * db_range;
 
     // ---- fondo, rejilla de dB y de tiempo
-    painter.rect_filled(rect, 2.0, Color32::from_gray(24));
-    let grid = Color32::from_gray(52);
+    let pal = theme::pal(ui);
+    painter.rect_filled(rect, 4.0, pal.canvas_bg);
+    let grid = pal.grid;
     for db in [12.0f32, 6.0, 0.0, -6.0, -12.0, -24.0, -36.0, -48.0] {
         let y = db_to_y(db);
-        let color = if db == 0.0 { Color32::from_gray(95) } else { grid };
+        let color = if db == 0.0 { pal.grid_zero } else { grid };
         painter.line_segment([pos2(rect.left(), y), pos2(rect.right(), y)], Stroke::new(1.0, color));
         painter.text(
             pos2(rect.left() + 4.0, y - 1.0),
             Align2::LEFT_BOTTOM,
             format!("{db:+.0}"),
             FontId::proportional(10.0),
-            Color32::from_gray(120),
+            pal.axis_text,
         );
     }
     let step = nice_step(vs);
@@ -2104,7 +2144,7 @@ fn env_canvas(
             Align2::LEFT_BOTTOM,
             fmt_time(t),
             FontId::proportional(10.0),
-            Color32::from_gray(120),
+            pal.axis_text,
         );
         t += step;
     }
@@ -2112,7 +2152,7 @@ fn env_canvas(
     // ---- forma de onda de la pista (de fondo, para saber dónde se habla)
     if let Some(pk) = peaks {
         let cy = rect.center().y;
-        let wave = Color32::from_rgba_unmultiplied(110, 150, 210, 70);
+        let wave = pal.wave;
         let per_sec = export::PEAKS_PER_SEC as f64;
         let mut px = 0.0f32;
         while px < rect.width() {
@@ -2209,8 +2249,8 @@ fn env_canvas(
         }
         let c = pos2(t_to_x(p.t), db_to_y(p.db));
         let sel = view.selected == Some(i);
-        painter.circle_filled(c, if sel { 6.0 } else { 4.5 }, if sel { Color32::WHITE } else { AMBER });
-        painter.circle_stroke(c, if sel { 6.0 } else { 4.5 }, Stroke::new(1.0, Color32::BLACK));
+        painter.circle_filled(c, if sel { 6.0 } else { 4.5 }, if sel { pal.point_sel } else { AMBER });
+        painter.circle_stroke(c, if sel { 6.0 } else { 4.5 }, Stroke::new(1.0, pal.point_outline));
     }
 
     // ---- lectura bajo el puntero
@@ -2224,7 +2264,7 @@ fn env_canvas(
             Align2::RIGHT_TOP,
             format!("{} · {:+.1} dB", fmt_time(t), db),
             FontId::monospace(11.0),
-            Color32::from_gray(200),
+            pal.readout,
         );
     }
     changed

@@ -15,6 +15,8 @@ exportas el episodio ya mezclado y masterizado.
 - **Exportación a varios ficheros**: mixdown masterizado (WAV/MP3), una pista WAV por voz y el MIDI
   de los pads. El mixdown se normaliza en sonoridad (LUFS) y se limita con techo a -1 dB de pico real.
 - Audio por **ASIO** o **WASAPI**.
+- **Modo claro y oscuro** (botón ☀/🌙 arriba a la derecha; la elección se recuerda) e icono propio:
+  un micrófono con orejas de gato y ondas de sonido, dibujado por código.
 
 ## Compilar (Windows 10/11, 64 bit)
 

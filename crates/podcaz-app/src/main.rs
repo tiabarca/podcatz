@@ -4,6 +4,7 @@
 mod app;
 mod audio_io;
 mod midi_in;
+mod theme;
 
 use eframe::egui;
 
@@ -12,7 +13,8 @@ fn main() -> eframe::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_title("PODCAZ")
             .with_inner_size([1320.0, 860.0])
-            .with_min_inner_size([1000.0, 640.0]),
+            .with_min_inner_size([1000.0, 640.0])
+            .with_icon(theme::icon_data(256)),
         ..Default::default()
     };
     eframe::run_native(
